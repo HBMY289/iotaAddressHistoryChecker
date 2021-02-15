@@ -31,6 +31,7 @@ type AddrInfo struct {
 
 type TxInfo struct {
 	Hash                string
+	Address			string
 	Value               int64
 	AttachmentTimestamp int64
 	Timestamp           uint64
@@ -45,9 +46,10 @@ type TxInfo struct {
 
 type ValueBundle struct {
 	Hash     string
-	Date     uint64
-	Address  string
+	Date     string
+	Addresses  []string
 	Outgoing bool
-	Value    uint64
+	Internal bool
+	Value    int64
 	TxInfos  []TxInfo
 }

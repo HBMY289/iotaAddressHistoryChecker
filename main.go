@@ -31,6 +31,7 @@ func main() {
 	for _, bundle := range bundles {
 		fmt.Println(bundle.TxInfos[0].AttachmentTimestamp, bundle.TxInfos[0].Bundlehash)
 	}
+	fmt.Println(analysis.GetAnalyzedBundlesReport(bundles))
 
 }
 
@@ -189,6 +190,7 @@ func getValueTxs(txHashes []string) []TxInfo {
 			valueTx.Timestamp = tx.Timestamp
 			valueTx.Value = tx.Value
 			valueTx.Bundlehash = tx.Bundle
+			valueTx.Address = tx.Address
 			txInfos = append(txInfos, valueTx)
 		}
 	}
