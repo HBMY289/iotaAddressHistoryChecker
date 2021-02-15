@@ -1,37 +1,94 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-
-	//"net/url"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"net/http"
+	"os"
 
 	//"github.com/iotaledger/iota.go/encoding/ascii"
+	"github.com/HBMY289/iotaAddressHistoryChecker/analysis"
+	. "github.com/HBMY289/iotaAddressHistoryChecker/types"
 	"github.com/iotaledger/iota.go/transaction"
-	//"github.com/iotaledger/iota.go/trinary"
 )
 
 const trytesSearchURL = "https://explorer-api.iota.org/trytes/mainnet/"
 const transactionSearchURL = "https://explorer-api.iota.org/transactions/mainnet/"
+
 const addrFileName = "addressExport.txt"
+const stateFileName = "stateExport.txt"
 
 func main() {
+	state := StateInfo{}
+	importStateFromFile(&state, stateFileName)
+	//state.Addresses = state.Addresses[0:1] // TODO only use first address for testing
+	//fmt.Println(state.Addresses[0].TxInfos[0])
+	bundles := analysis.GetConfirmedBundles(state)
+	fmt.Println("found bundles: ", len(bundles))
+	fmt.Println("bundles[0]:", bundles[0].TxInfos[0].AttachmentTimestamp)
+	for _, bundle := range bundles {
+		fmt.Println(bundle.TxInfos[0].AttachmentTimestamp, bundle.TxInfos[0].Bundlehash)
+	}
 
-	state := ImportAddresses(addrFileName)
-	fmt.Println(state[0].address)
-	populateAddressTxs(state)
-	//fmt.Println(state[0].txHashes)
-	populateTxInfo(&state)
-	//res := GetTXHashesOfAdresses(addrs)
-	//fmt.Println("res:\n", res)
-	//fmt.Println(addrs)
-	//SearchAddresses(addrs)
 }
 
-func ImportAddresses(fileName string) []addrInfo {
+func main2() {
+	state := StateInfo{}
+	importAddressesFromFile(&state, addrFileName)
+	//state.Addresses = state.Addresses[0:1] // TODO only use first address for testing
+	debug(state.Addresses[0].Address)
+	populateAddressInfo(&state)
+	debug(state.Addresses[0].BundleHashes)
+	fmt.Println(state.Addresses[0].TxInfos[0])
+
+	exportState(state, stateFileName)
+}
+
+func exportState(state StateInfo, fileName string) {
+	fmt.Println(len(state.Addresses))
+	fmt.Println(state.Addresses[0].TxInfos[0])
+	j, err := json.Marshal(state)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	f, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("j: ", string(j))
+	l, err := f.WriteString(string(j))
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(l)
+		f.Close()
+		return
+	}
+}
+
+func importStateFromFile(state *StateInfo, fileName string) {
+
+	data, err := ioutil.ReadFile(fileName)
+	var tempState StateInfo
+	if err != nil {
+		fmt.Printf("Could not find '%s'. This program requires a file with addresses to work.", fileName)
+		panic(err)
+	}
+
+	err = json.Unmarshal(data, &tempState)
+	if err != nil {
+		fmt.Println("The file does not have the expected format.")
+		panic(err)
+	}
+
+	*state = tempState
+	fmt.Printf("successfully imported state with %d addresses from file: %s\n", len(state.Addresses), fileName)
+}
+
+func importAddressesFromFile(state *StateInfo, fileName string) {
 	var addrs []string
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -44,59 +101,18 @@ func ImportAddresses(fileName string) []addrInfo {
 		fmt.Println("The file does not have the expected format.")
 		panic(err)
 	}
-	//fmt.Println(string(data))
 
-	return initializeStateWithAddresses(addrs[0:1]) // xxx only first one for testing
-}
-
-func initializeStateWithAddresses(addrs []string) []addrInfo {
-	var state []addrInfo
 	for _, addr := range addrs {
-		info := addrInfo{}
-		info.address = addr
-		state = append(state, info)
+		info := AddrInfo{}
+		info.Address = addr
+		state.Addresses = append(state.Addresses, info)
 	}
-	return state
+
+	fmt.Printf("successfully imported %d addresses from file: %s\n", len(state.Addresses), fileName)
 }
 
-func SearchAddresses(addrs []string) {
-	//addrs = make([]string,1)
-	//addrs="HTTISYARVKRWCTUAOKH9I9VTQVTLSQXCZGPKWJN9RFISYXSXNDJIWPAAJXTYILIKHSVCEJWISMGUA9999"
-	//	message := req{}
-	//	message.network = "mainnet"
-	//	message.hashes = []string{"HTTISYARVKRWCTUAOKH9I9VTQVTLSQXCZGPKWJN9RFISYXSXNDJIWPAAJXTYILIKHSVCEJWISMGUA9999"}
-	//hashes := []string{"HTTISYARVKRWCTUAOKH9I9VTQVTLSQXCZGPKWJN9RFISYXSXNDJIWPAAJXTYILIKHSVCEJWISMGUA9999"}
-
-	message := map[string]interface{}{
-		"network": "mainnet",
-		"hashes":  addrs,
-	}
-	bytesRepresentation, err := json.Marshal(message)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("message: ", message)
-	fmt.Println("json: ", string(bytesRepresentation))
-	response, err := http.Post(trytesSearchURL, "application/json", bytes.NewBuffer(bytesRepresentation))
-
-	//okay, moving on...
-	if err != nil {
-		//handle postform error
-		panic(err)
-	}
-
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("body: %s\n", string(body))
-}
-
-func GetTxsTryteResponse(hashes []string) txTrytesResponse {
-	var result txTrytesResponse
+func GetTxsTryteResponse(hashes []string) TxTrytesResponse {
+	var result TxTrytesResponse
 	message := map[string]interface{}{
 		"network": "mainnet",
 		"hashes":  hashes,
@@ -119,8 +135,6 @@ func GetTxsTryteResponse(hashes []string) txTrytesResponse {
 		panic(err)
 	}
 
-	//fmt.Printf("body: %s\n", string(body))
-
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		panic(err)
@@ -129,62 +143,119 @@ func GetTxsTryteResponse(hashes []string) txTrytesResponse {
 	return result
 }
 
-func populateTxInfo(state *[]addrInfo) {
-	for j, _ := range *state {
-		resp := GetTxsTryteResponse(*(state)[j].txHashes)
-		for i, trytes := range resp.Trytes {
-			tx, err := transaction.AsTransactionObject(trytes)
-			if err != nil {
-				panic(err)
-			}
-			if tx.Value != 0 {
-				bundle := &(getBundle(&state[j].valueBundles, tx.Bundle))
-				valueTx := txInfo{}
-				valueTx.attachmentTimestamp = tx.AttachmentTimestamp
-				if resp.MilestoneIndexes[i] > 0 {
-					valueTx.confMilestone = resp.MilestoneIndexes[i]
-					valueTx.confirmed = true
-				}
-				valueTx.hash = tx.Hash
-				valueTx.messageASCII = tx.SignatureMessageFragment //TODO decode
-				valueTx.obsoleteTag = tx.ObsoleteTag
-				valueTx.rawTrytes = trytes
-				valueTx.tag = tx.Tag
-				valueTx.timestamp = tx.Timestamp
-				valueTx.value = tx.Value
-				//bundle.txs = append(bundle.txs, valueTx)
-				*bundle.txs = append(*bundle.txs, valueTx)
-			}
-			//fmt.Println("t0:\n", ts[0].Hash, ts[0].Bundle, ts[0].Confirmed)
+func populateAddressInfo(state *StateInfo) {
+	for i, _ := range state.Addresses {
+
+		fmt.Printf("\rgetting info for address (%d/%d)", i+1, len(state.Addresses))
+		txHashes := findTxHashes(state.Addresses[i].Address)
+		debug(txHashes)
+		bundleHashes := getBundleHashes(txHashes)
+		state.Addresses[i].BundleHashes = bundleHashes
+		debug("bundle hashes:")
+		debug(state.Addresses[i].BundleHashes)
+		debug("getting all tx hashes of bundles")
+		txHashes = getAllTxHashesOfBundles(state.Addresses[i].BundleHashes)
+		state.Addresses[i].TxHashes = txHashes
+		debug("all tx hashes:")
+		debug(state.Addresses[i].TxHashes)
+		debug("getting tx info for txs")
+		state.Addresses[i].TxInfos = getValueTxs(txHashes)
+		debug("txInfos:")
+		debug(state.Addresses[i].TxInfos)
+		//TODO get balances
+	}
+}
+
+func getValueTxs(txHashes []string) []TxInfo {
+	var txInfos []TxInfo
+	resp := GetTxsTryteResponse(txHashes)
+	for i, trytes := range resp.Trytes {
+		tx, err := transaction.AsTransactionObject(trytes)
+		if err != nil {
+			panic(err)
 		}
-		//fmt.Println(i, resp)
-		//state[i].txInfos = resp
-		//state[i].  //xxx
-	}
-}
-
-func getBundle(bundles *[]valueBundle, hash string) valueBundle {
-	for _, bundle := range *bundles {
-		if bundle.bundleHash == hash {
-			return bundle
+		if tx.Value != 0 {
+			valueTx := TxInfo{}
+			valueTx.AttachmentTimestamp = tx.AttachmentTimestamp
+			if resp.MilestoneIndexes[i] > 0 {
+				valueTx.ConfMilestone = resp.MilestoneIndexes[i]
+				valueTx.Confirmed = true
+			}
+			valueTx.Hash = tx.Hash
+			valueTx.MessageASCII = tx.SignatureMessageFragment //TODO decode
+			valueTx.ObsoleteTag = tx.ObsoleteTag
+			//valueTx.rawTrytes = trytes
+			valueTx.Tag = tx.Tag
+			valueTx.Timestamp = tx.Timestamp
+			valueTx.Value = tx.Value
+			valueTx.Bundlehash = tx.Bundle
+			txInfos = append(txInfos, valueTx)
 		}
 	}
-	newBundle := valueBundle{}
-	newBundle.bundleHash = hash
-	*bundles = append(*bundles, newBundle)
-	return (*bundles)[len(*bundles)-1]
+	return txInfos
 }
 
-func populateAddressTxs(state []addrInfo) {
-
-	for i, addr := range state {
-		state[i].txHashes = GetTxHashesOfAddress(addr.address)
+func getAllTxHashesOfBundles(bHashes []string) []string {
+	var hashes []string
+	for _, bHash := range bHashes {
+		debug("finding hashes for bundle: " + bHash)
+		txHashes := findTxHashes(bHash)
+		hashes = append(hashes, txHashes...)
+		debug(txHashes)
 	}
-
+	return hashes
 }
 
-func GetTxHashesOfAddress(addr string) []string {
-	addrHashes := addrTxResponse{}
+func findTxHashes(hash string) []string {
+	hashes := FindTxResponse{}
+	resp, err := http.Get(transactionSearchURL + hash)
+	if err != nil {
+		panic(err)
+	}
+	if resp != nil {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(body, &hashes)
+		if err != nil {
+			panic(err)
+		}
+		resp.Body.Close()
+	} else {
+		panic(err)
+	}
+	return hashes.Hashes
+}
+
+func getBundleHashes(txHashes []string) []string {
+	var hashes []string
+	resp := GetTxsTryteResponse(txHashes)
+	for _, trytes := range resp.Trytes {
+		tx, err := transaction.AsTransactionObject(trytes)
+		if err != nil {
+			panic(err)
+		}
+		if tx.Value != 0 {
+			if !known(hashes, tx.Bundle) {
+				hashes = append(hashes, tx.Bundle)
+			}
+		}
+	}
+	return hashes
+}
+
+func known(names []string, newName string) bool {
+	for _, name := range names {
+		if name == newName {
+			return true
+		}
+	}
+	return false
+}
+
+func GetTxHashesOfAddress2(addr string) []string {
+	addrHashes := FindTxResponse{}
 	resp, err := http.Get(transactionSearchURL + addr)
 	if err != nil {
 		panic(err)
@@ -196,8 +267,7 @@ func GetTxHashesOfAddress(addr string) []string {
 			panic(err)
 		}
 
-		//fmt.Println(string(body))
-		addrHashes = addrTxResponse{}
+		addrHashes = FindTxResponse{}
 		err = json.Unmarshal(body, &addrHashes)
 		if err != nil {
 			panic(err)
@@ -205,57 +275,12 @@ func GetTxHashesOfAddress(addr string) []string {
 
 		resp.Body.Close()
 	} else {
-		fmt.Println("BAD")
+		panic(err)
 	}
 
 	return addrHashes.Hashes
 }
 
-type req struct {
-	network string
-	hashes  []string
-}
-
-type addrTxResponse struct {
-	Mode   string   `json:"mode"`
-	Hashes []string `json:"hashes"`
-	Cursor struct {
-		Node    int  `json:"node"`
-		HasMore bool `json:"hasMore"`
-		Perma   int  `json:"perma"`
-		NextInt int  `json:"nextInt"`
-	} `json:"cursor"`
-}
-
-type txTrytesResponse struct {
-	MilestoneIndexes []int64  `json:"milestoneIndexes"`
-	Trytes           []string `json:"trytes"`
-}
-
-type addrInfo struct {
-	address      string
-	txHashes     []string
-	txInfos      []txInfo
-	bundelHashes []string
-	valueBundles []valueBundle
-	balance      uint64
-}
-
-type valueBundle struct {
-	bundleHash string
-	txs        []txInfo
-}
-
-type txInfo struct {
-	hash                string
-	value               int64
-	attachmentTimestamp int64
-	timestamp           uint64
-	confMilestone       int64
-	confirmed           bool
-	tag                 string
-	obsoleteTag         string
-	messageASCII        string
-	bundlehash          string
-	rawTrytes           string
+func debug(item interface{}) {
+	//fmt.Println("debug:", item)
 }
