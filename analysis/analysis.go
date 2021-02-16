@@ -3,106 +3,112 @@ package analysis
 import (
 	"fmt"
 	"sort"
-	"time"
 	"strings"
-
+	"time"
 
 	. "github.com/HBMY289/iotaAddressHistoryChecker/types"
 )
 
-func GetConfirmedBundles(state StateInfo) []ValueBundle {
+func getConfirmedBundles(state StateInfo) []ValueBundle {
 	bundles := collectBundles((state))
 	sort.Slice(bundles, func(i1, i2 int) bool {
 		return bundles[i1].TxInfos[0].AttachmentTimestamp < bundles[i2].TxInfos[0].AttachmentTimestamp
 	})
-	bundles = analyzeBundles(bundles,seedAddresses(state))
-	fmt.Println("seed addresses: " , seedAddresses(state))
+	bundles = analyzeBundles(bundles, seedAddresses(state))
 	return bundles
 }
 
-
-func seedAddresses (state StateInfo) []string {
+func seedAddresses(state StateInfo) []string {
 	var addrs []string
-	for _,addrInfo := range state.Addresses {
-		addrs = append(addrs,addrInfo.Address)
+	for _, addrInfo := range state.Addresses {
+		addrs = append(addrs, addrInfo.Address)
 	}
 	return addrs
 }
-
 
 func analyzeBundles(bundles []ValueBundle, addrs []string) []ValueBundle {
 	for i, bundle := range bundles {
 		bundles[i] = analyzeBundle(bundle, addrs)
 	}
 	return bundles
-	
+
 }
 
+func GetBalanceReport(state StateInfo) string {
+	report := "\nThe following balances could be found in the data of explorer.iota.org:\n"
+	var total uint64
+	for _, addr := range state.Addresses {
+		report += fmt.Sprintf("%di on address %s\n", addr.Balance, addr.Address)
+		total += addr.Balance
+	}
+	report += fmt.Sprintf("\ntotal balance: %di for %d addresses\n", total, len(state.Addresses))
+	return report
+}
 
-func GetAnalyzedBundlesReport (bundles []ValueBundle) string {
+func GetAnalyzedBundlesReport(state StateInfo) string {
 	var report string
 	var plural string
-	for _,bundle := range bundles{
+
+	bundles := getConfirmedBundles(state)
+	report = "\nThe following value movements could be found in the data of explorer.iota.org:\n"
+	for _, bundle := range bundles {
 		if !bundle.Internal {
 			if len(bundle.Addresses) > 1 {
 				plural = "es"
 			}
-			report += fmt.Sprintf("%s\n%d %s address%s %s\nvia bundle %s\n\n", bundle.Date, bundle.Value, direction(bundle.Outgoing), plural, strings.Join(bundle.Addresses,"\nand "), bundle.Hash)
+			report += fmt.Sprintf("%s\n%di %s address%s %s\nvia bundle %s\n\n", bundle.Date, bundle.Value, direction(bundle.Outgoing), plural, strings.Join(bundle.Addresses, "\nand "), bundle.Hash)
 		}
-
 	}
 	return report
 }
 
-func direction (out bool) string {
+func direction(out bool) string {
 	if out {
 		return "sent to"
 	}
 	return "received from"
 }
 
-func analyzeBundle (bundle ValueBundle, addrs []string) ValueBundle {
+func analyzeBundle(bundle ValueBundle, addrs []string) ValueBundle {
 
 	var knownInputs, unknownInputs, knownOutputs, unknownOutputs []string
 	var knownBal, unknownBal int64
-	for _,txInfo := range bundle.TxInfos {
-		if contains (addrs, txInfo.Address) {
+	for _, txInfo := range bundle.TxInfos {
+		if contains(addrs, txInfo.Address) {
 			if txInfo.Value < 0 {
 				knownInputs = append(knownInputs, txInfo.Address)
 			} else {
-				knownOutputs = append(knownOutputs, txInfo.Address)	
+				knownOutputs = append(knownOutputs, txInfo.Address)
 			}
 			knownBal += txInfo.Value
-		} else{
+		} else {
 			if txInfo.Value < 0 {
 				unknownInputs = append(unknownInputs, txInfo.Address)
 			} else {
-				unknownOutputs = append(unknownOutputs, txInfo.Address)	
+				unknownOutputs = append(unknownOutputs, txInfo.Address)
 			}
 			unknownBal += txInfo.Value
 		}
 	}
-	
-	switch  {
-		case knownBal > 0:
-			bundle.Outgoing = false
-			bundle.Addresses = unknownInputs
-			bundle.Value = knownBal
-		case knownBal < 0:
-			bundle.Outgoing = true
-			bundle.Addresses = unknownOutputs
-			bundle.Value = knownBal *-1
-		case knownBal == 0:
-			bundle.Internal = true	
-			bundle.Value = 0	
+
+	switch {
+	case knownBal > 0:
+		bundle.Outgoing = false
+		bundle.Addresses = unknownInputs
+		bundle.Value = knownBal
+	case knownBal < 0:
+		bundle.Outgoing = true
+		bundle.Addresses = unknownOutputs
+		bundle.Value = knownBal * -1
+	case knownBal == 0:
+		bundle.Internal = true
+		bundle.Value = 0
 	}
-	bundle.Date = time.Unix(bundle.TxInfos[0].AttachmentTimestamp/1000, 0).String()
+	bundle.Date = time.Unix(bundle.TxInfos[0].AttachmentTimestamp/1000, 0).Format("Mon, 02 Jan 2006 15:04:05 MST")
 	return bundle
 }
 
-
-
-func contains (items []string, matchItem string) bool {
+func contains(items []string, matchItem string) bool {
 	for _, item := range items {
 		if item == matchItem {
 			return true
@@ -110,9 +116,6 @@ func contains (items []string, matchItem string) bool {
 	}
 	return false
 }
-
-
-
 
 func collectBundles(state StateInfo) []ValueBundle {
 

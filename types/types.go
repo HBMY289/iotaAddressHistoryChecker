@@ -21,6 +21,10 @@ type StateInfo struct {
 	Addresses   []AddrInfo
 }
 
+type BalanceResponse struct {
+	Balance uint64
+}
+
 type AddrInfo struct {
 	Address      string
 	TxHashes     []string
@@ -31,7 +35,7 @@ type AddrInfo struct {
 
 type TxInfo struct {
 	Hash                string
-	Address			string
+	Address             string
 	Value               int64
 	AttachmentTimestamp int64
 	Timestamp           uint64
@@ -45,11 +49,11 @@ type TxInfo struct {
 }
 
 type ValueBundle struct {
-	Hash     string
-	Date     string
-	Addresses  []string
-	Outgoing bool
-	Internal bool
-	Value    int64
-	TxInfos  []TxInfo
+	Hash      string
+	Date      string
+	Addresses []string
+	Outgoing  bool
+	Internal  bool
+	Value     int64
+	TxInfos   []TxInfo
 }
