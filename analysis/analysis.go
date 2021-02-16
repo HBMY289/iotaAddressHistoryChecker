@@ -47,12 +47,12 @@ func GetBalanceReport(state StateInfo) string {
 
 func GetAnalyzedBundlesReport(state StateInfo) string {
 	var report string
-	var plural string
 
 	bundles := getConfirmedBundles(state)
 	report = "\nThe following value movements could be found in the data of explorer.iota.org:\n"
 	for _, bundle := range bundles {
 		if !bundle.Internal {
+			plural:= ""
 			if len(bundle.Addresses) > 1 {
 				plural = "es"
 			}

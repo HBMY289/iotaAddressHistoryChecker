@@ -22,17 +22,17 @@ func main() {
 }
 
 func mainMenu(state StateInfo) {
-	fmt.Println("This program aggregates and analyses information about Iota token movements on your account.")
+	fmt.Println("\n\nThis program aggregates and analyses information about Iota token movements on your account.")
 	fmt.Println("It requires a list of known addresses of your seed and will then request the transaction history from the Iota tangle explorer 'explorer.iota.org'.")
 	fmt.Println("The required address file can be generated using the iotaZeroBalanceHelper ('https://github.com/HBMY289/iotaZeroBalanceHelper').")
 	for {
-		opt := userIO.GetOption("You can either start by importing an address file from the iotaZeroBalanceHelper or a previously exported state of this program.",
+		opt := userIO.GetOption("You can either start by importing an address file from the iotaZeroBalanceHelper or use a previously exported state of this program.\n",
 			[]string{"Import address file", "Import saved state file", "Exit"})
 		switch opt {
 		case 1:
 			err := ImportAddressesFromFile(&state, addrFileName)
 			if err == nil {
-				fmt.Println("Make sure the computer is connected to the internet. The transaction history will now be requested from explorer.iota.org.")
+				fmt.Println("\nMake sure the computer is connected to the internet. The transaction history will now be requested from explorer.iota.org.")
 				userIO.WaitforEnter()
 				err := explorer.PopulateAddressInfo(&state)
 				if err == nil {
@@ -40,10 +40,14 @@ func mainMenu(state StateInfo) {
 					if export {
 						err := ExportState(state, stateFileName)
 						if err != nil {
-							fmt.Println("Could not export state file.")
+							fmt.Println("\n\nError: Could not export state file.")
+							userIO.WaitforEnter()
 						}
 					}
 					analysisMenu(state)
+				} else {
+					fmt.Println("\n\nError: Failed downloading information from explorer.iota.org.")
+					userIO.WaitforEnter()
 				}
 			}
 		case 2:
@@ -56,6 +60,9 @@ func mainMenu(state StateInfo) {
 		}
 	}
 }
+
+
+
 
 func analysisMenu(state StateInfo) {
 menu:

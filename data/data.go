@@ -45,7 +45,7 @@ func ImportAddressesFromFile(state *StateInfo, fileName string) error {
 		state.Addresses = append(state.Addresses, info)
 	}
 
-	fmt.Printf("Successfully imported %d addresses from file: %s\n", len(state.Addresses), fileName)
+	fmt.Printf("\n\nSuccessfully imported %d addresses from file: %s\n", len(state.Addresses), fileName)
 	return nil
 }
 
@@ -64,16 +64,22 @@ func ExportState(state StateInfo, fileName string) error {
 	if err != nil {
 		panic(err)
 	}
+	err = writeToFile(string(j),fileName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeToFile (text,fileName string) error {
 	f, err := os.Create(fileName)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	l, err := f.WriteString(string(j))
+	_, err = f.WriteString(text)
 	if err != nil {
-		fmt.Println(err)
-		fmt.Println(l)
-		return nil
+		return err
 	}
-	return err
+	return nil
 }
