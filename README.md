@@ -4,11 +4,10 @@
 This program was written to help Iota users who unexpectedly see a zero balance in their Trinity wallet. There are multiple reasons why this could be happening and often it is not easy for non-experts to find out what is going on.
 
 ## What does it do?
-The program automatically downloads the complete tranasaction history for all known addresses of your account. It the analyzes them and creates a short report listing all relevant information about token movements for incoming and outgoing tranasctions.
+The program automatically downloads the complete transaction history for all known addresses of your account. It then analyzes them and creates a short report listing all relevant information about token movements for incoming and outgoing tranasctions.
 While this program requires an internet connection to work it does not need the seed for your account. Instead it relies on a list of known addresses that can be securely generated on an air-gapped computer using another program I have written ([iotaZeroBalanceHelper](https://github.com/HBMY289/iotaZeroBalanceHelper).
+Transaction history is downloaded from the official Iota tangle explorer [explorer.iota.org](https://explorer.iota.org).
 
-
-## How it works
 
 
 ## Disclaimer
@@ -35,9 +34,9 @@ or on Windows
 iotaAddressHistoryChecker.exe
 ```
 ## How to use the tool
-Once the program is running you will have to import the address file generated earlier by the ([iotaZeroBalanceHelper](https://github.com/HBMY289/iotaZeroBalanceHelper). Place the file `addressExport.txt` next to this tool's executable. After the successful import all available transaction information will be downloaded.
+Once the program is running you will have to import the address file generated earlier by the [iotaZeroBalanceHelper](https://github.com/HBMY289/iotaZeroBalanceHelper). Place the file `addressExport.txt` next to this tool's executable. After the successful import all available transaction information will be downloaded.
 
-##### Export state
+## Export/import state file
 Depending on the number of supplied addresses the download of all related transactions can take quite a while. The program allows to export this aggregated information to a state file so it can later be used and analyzed without having to request the information from the explorer again.
 
 ## Need additonal help?
