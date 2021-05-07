@@ -12,10 +12,10 @@ import (
 	"github.com/iotaledger/iota.go/transaction"
 )
 
-const trytesSearchURL = "https://explorer-api.iota.org/trytes/mainnet/"
-const transactionSearchURL = "https://explorer-api.iota.org/transactions/mainnet/"
-const balanceSearchURL = "https://explorer-api.iota.org/address/mainnet/"
-const network = "mainnet"
+const trytesSearchURL = "https://explorer-api.iota.org/trytes/legacy-mainnet/"
+const transactionSearchURL = "https://explorer-api.iota.org/transactions/legacy-mainnet/"
+const balanceSearchURL = "https://explorer-api.iota.org/address/legacy-mainnet/"
+const network = "legacy-mainnet"
 
 func PopulateAddressInfo(state *StateInfo) error {
 	for i, _ := range state.Addresses {
